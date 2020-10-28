@@ -5,7 +5,7 @@ published: true
 ---
 Passed the OSCP last weekend, placed 1st at my first CTF at Hackfest@BsidesToronto Beginners CTF 2020 and got a blog running.
 
-Planning to use this space to post writeups, futurefunk, punk rock and cool art shit.
+Planning to use this space to post writeups, futurefunk, punk rock and cool art.
 
 Screenshots or it didn't happen.
 
