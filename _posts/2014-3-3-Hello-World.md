@@ -1,10 +1,14 @@
 ---
 layout: post
-title: You're up and running!
+title: Placed 1st at Hackfest@BsidesToronto's Beginner's CTF 2020
+published: true
 ---
+Crazy, wasn't really planning on taking 1st but my competitive streak just wouldn't let me. Attempting the OSCP exam tomorrow, so pretty pumped about this win! 
 
-Next you can update your site name, avatar and other options using the _config.yml file in the root of your repository (shown below).
+Screenshots or it didn't happen.
+![Hackfest1stplaceBsides.png]({{site.baseurl}}/_posts/Hackfest1stplaceBsides.png)
 
-![_config.yml]({{ site.baseurl }}/images/config.png)
 
-The easiest way to make your first post is to edit this one. Go into /_posts/ and update the Hello World markdown file. For more instructions head over to the [Jekyll Now repository](https://github.com/barryclark/jekyll-now) on GitHub.
+Shout out to kairaeda and Minchi for being great sports (if they ever find this blog that is =P ) 
+
+
