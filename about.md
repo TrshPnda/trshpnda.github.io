@@ -10,5 +10,4 @@ NOT interested in doing anything illegal.
 
 NOT responsible for you copy pasting anything here and then blowing something up.
 
-
 AM INTERESTED IN CHEATING/Reverse Engineering AT VIDEOGAMES (single player)
