@@ -1,0 +1,16 @@
+---
+layout: post
+title: What a Week!
+published: true
+---
+Passed the OSCP last weekend, won my first CTF at Hackfest@BsidesToronto Beginners CTF 2020 and got a blog running.
+
+Planning to use this space to post writeups, futurefunk, punk rock and cool art shit.
+
+Screenshots or it didn't happen.
+
+
+
+Shout out to kairaeda and Minchi for being great sports (if they ever find this blog that is =P ) 
+
+
