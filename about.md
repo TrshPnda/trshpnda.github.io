@@ -22,4 +22,4 @@ and playing guitar sometimes. (Blues, Jazz, and Punk rock)
 
 I like all kinds of music and I am a bit of a weeb. (FUTURE FUNK AND VTUBERS ARE THE FUTURE)
 
-I believe we're heading towards a Shadowrun like dystopia... uhhh so learn to code.
+I believe we're heading towards a Shadowrun like dystopia... uhhh so learn to computer.
