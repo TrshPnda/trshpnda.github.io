@@ -16,7 +16,7 @@ learning stuff
 
 reading stuff (Graphic Novels, technical manuals)
 
-lifting stuff... I really like lifting stuff. (315 squat, 200 bench, 315 deadlift @ 150 #lbs) 
+lifting stuff... I really like lifting stuff. (315 squat, 200 bench, 315 deadlift @ 150 #lbs) #Er... pre-covid lol
 
 and playing guitar sometimes. (Blues, Jazz, and Punk rock)
 
