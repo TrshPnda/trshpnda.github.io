@@ -1,6 +1,6 @@
 ---
 layout: post
-title: What a Week!
+title: What a week!
 published: true
 ---
 Passed the OSCP last weekend, placed 1st at my first CTF at Hackfest@BsidesToronto Beginners CTF 2020 and got a blog running.
