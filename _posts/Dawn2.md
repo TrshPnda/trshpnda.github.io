@@ -46,16 +46,19 @@ OS:=N)U1(R=Y%DF=N%T=40%IPL=164%UN=0%RIPL=G%RID=G%RIPCK=G%RUCK=G%RUD=G)IE(R=
 OS:Y%DFI=N%T=40%CD=S)
 ```
 
-
 So far I can tell that Dawn2 is running 3 services on port 80,1435 and 1985; a web server and two unknown, possibly custom, services. And I'll save you the time and tell you that the output from nikto and gobuster (with the famous common.txt wordlist anyways) doesn't return anything interesting. And since nmap wasn't able to finger print the two services, the best way forward is to see what is on the webserver itself. We could always fall back to scanning UDP ports or instrusively try to generate a response from the services (netcat,python etc) as a last resort.
 
-**insert screenshot**
+
+![](https://raw.githubusercontent.com/TrshPnda/trshpnda.github.io/master/images/Dawn2-TMI.png)
+
 
 Fortunately, I'm presented an "Under Construction" type webpage that also felt the need to tell everyone some pretty sensitive information. For example - You really don't want to let the world know that you do not have an IDS, a WAF or a functioning security team for that matter. 
 
 And you **really** do not want to provide to anyone that asks - a copy of your custom server software.
 
-**screenshot of download**
+
+![](https://raw.githubusercontent.com/TrshPnda/trshpnda.github.io/master/images/Dawn2-NoAuthDownload.png)
+
 
 Complete with debugging notes.
 
