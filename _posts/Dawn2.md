@@ -268,7 +268,7 @@ Nice! we have a working proof of concept.
 
 and just for a bit more fun...
 
-![](https://raw.githubusercontent.com/TrshPnda/trshpnda.github.io/master/images/Dawn2-windowspoc.gif)
+![](https://raw.githubusercontent.com/TrshPnda/trshpnda.github.io/master/images/Dawn2-RickRolled.gif)
 
 (I had to refactor the exploit into python2 for the msfvenom payload to work - don't ask, I'm not sure either, something something bytes and whitespace I think)
 
