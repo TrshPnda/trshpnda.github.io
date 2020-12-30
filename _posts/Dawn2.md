@@ -81,7 +81,9 @@ dawn.exe: PE32 executable (console) Intel 80386, for MS Windows
 Interesting... even though nmap (and the PG platform) points to this being a linux box, the server that's running on the machine is a MS-Windows executable, this means that this is being run with WINE or equivalent and may affect the exploit (Which I'm feeling is a memory corruption type). Just something to keep in mind but I have a solid lead anyways so let's start the exploit development process.
 
 I have a windows vm with immunity on a separate box for exploit development cause I'd rather keep vulnerable binaries in a separate environment. So transfer over the 
-dawn.exe binary to your windows environment of choice with whatever method you like - I personally like using ```certutil`` or just ```wget``` on powershell (3+ I think) to your python webserver and launch the dawn.exe server via immunity.
+dawn.exe binary to your windows environment of choice with whatever method you like - I personally like using ```certutil``` or just ```wget``` on powershell (3+ I think) to your python webserver. 
+
+Finally launch the dawn.exe server via immunity or whatever debugger you prefer.
 
 I'll also provide a boilerplate so you can jump in and follow along if you are familiar with buffer overflow exploit development but I sort of encourage everyone to make their own, being able to make a ~~shitty~~ simple tcp client is kind of useful and it's fun!
 
@@ -107,7 +109,7 @@ def connect():
 connect()
 ```
 
-It's fairly straightforward it's a simple tcp client takes two arguments the target IP and the port of the service and prints out status messages, I like to put things inside of functions cause it keeps things a little neat in my head. Also note that I haven't included a main() function yet and I'm just calling the function connect() directly - If you didn't know Python (unlike other languages) doesn't actually care about entrypoints like main() but it's always good practice to do that for readability.
+It's fairly straightforward it's a simple tcp client takes two arguments the target IP and the port of the service and prints out status messages, I like to put things inside of functions cause it keeps things a little neat. Also note that I haven't included a main() function yet and I'm just calling the function connect() directly - If you didn't know Python (unlike other languages) doesn't actually care about entrypoints like main() but it's always good practice to do that for readability.
 
 Now since I know that the program is unstable as indicated by the README file. Let's just yeet a payload... 1000 sounds like a a nice round number (even though the actual payload will be 1001 including the NULL byte but shhhh) let's send a unique string of that length via ```msf-pattern_create -l 1000```
 
@@ -120,7 +122,7 @@ Now since I know that the program is unstable as indicated by the README file. L
       sock.sent(buffer)
 ```
 
-But first let's double check our windows box with nmap.
+But first let's double check the serivce on windows box with nmap.
 
 ```
 Starting Nmap 7.80 ( https://nmap.org ) at 2020-12-29 14:45 EST
@@ -137,7 +139,7 @@ PORT     STATE SERVICE
 Nmap done: 1 IP address (1 host up) scanned in 106.10 seconds
 ```
 
-Awesome, we know from the scan for Dawn2 1985 was the port of the unknown service so we're definitely somewhere. Interestingly scanning seems to have crashed the service.
+Awesome, we know from the scan for Dawn2, 1985 was the port of the unknown service so we're definitely somewhere. Interestingly scanning seems to have crashed the service.
 
 ![](https://raw.githubusercontent.com/TrshPnda/trshpnda.github.io/master/images/Dawn2-SEHCrashonScan.png)
 
@@ -152,19 +154,19 @@ But if we interact with the service running on Dawn2 with netcat
 Ncat: Connection refused.
 ```
 
-Cool even though we are crashing it with our scans - the server is being restarted periodically, and if this isn't the case thankfully we could always "revert" the box and try again. There's a lesson here somewhere about OPSEC and being careful when testing someone's stuff fortunately this is just pretend and besides it's not like they have a security team either ;D
+Cool even though we are crashing it with our scans - the server is being restarted periodically, and if this isn't the case thankfully we could always "revert" the box and try again. There's a lesson here somewhere about OPSEC and being careful when testing someone's stuff fortunately this is just pretend and besides like their website said it's not like they have a security team anyways ;D
 
 Let's restart our copy of the server with immunity and send our payload
 
 ![](https://raw.githubusercontent.com/TrshPnda/trshpnda.github.io/master/images/Dawn2-SEHtrigged.png)
 
-See where the instruction pointer is? Dead Giveaway for SEH (I'll explain what that is in a bit). And If we step through it.
+See where the instruction pointer is? Dead Giveaway for SEH (I'll explain it if you don't know that that is). And If we step through it.
 
 ![](https://raw.githubusercontent.com/TrshPnda/trshpnda.github.io/master/images/Dawn2-SEHChain.png)
 
 Yup, looks like a SEH overflow. We can see our unique string of *42346142* in both the EIP and the SEH Chain window. 42346142 itself translates to Ba4B (accounting for endianess)
 
-But first let's talk a little about SEH, SEH or Structured Error Handling is essentially Microsoft's way of dealing with unexpected errors (such as crashes) unfortunately it is also vulnerable to overflows as well... but also unfortunately crafting a viable exploit is a little more involved, can't just use any old pointer address cause they usually doesn't point to anything viable at the time of the crash and **AFAIK** we're also going to need a "pop pop return" instruction for an exploit to be viable usually in order to properly hijack the execution flow.
+But first let's talk a little about SEH, SEH or Structured Error Handling is Microsoft's way of dealing with unexpected errors (such as crashes) unfortunately it is also vulnerable to overflows as well... but also unfortunately crafting a viable exploit is a little more involved usually because the registers doesn't point to anything viable at the time of the crash and **AFAIK** we're also going to need a "pop pop return" instruction for an exploit to properly hijack the execution flow because of that reason. Essentially you want to trick the error handling process into executing your code instead of displaying an error message and exiting gracefully... essentially.
 
 (Full Disclosure I just throw shit at shit, see what happens then google alot, so this topic is definitely worth exploring more in depth if binary exploitation is your thing)
 
@@ -189,7 +191,7 @@ Resend our payload
 
 ![](https://raw.githubusercontent.com/TrshPnda/trshpnda.github.io/master/images/Dawn2-SEHEIPCONTROL.png)
 
-and as indicated by our 42s we have control of the instruction pointer, also double checking the DUMP output it looks like we only actually have 128 bytes to play with (78+8 in Hex = 128 Decimal, meaning our payload would only actually be 925 bytes) chalk it up to our yolo nature of our fuzzing... now to see if we can actually control the execution flow.
+and as indicated by our 42s we have control of the instruction pointer, also double checking the DUMP output it looks like we only actually have 128 bytes to play with (78+8 in Hex = 128 Decimal, meaning our payload is actually only 925 bytes) chalk it up to our yolo nature of our fuzzing... now to see if we can actually control the execution flow.
 
 Let's restart the server and search for a usuable module via ```!mona modules```
 
@@ -340,4 +342,4 @@ My apologies if you were hoping for a writeup that more thoroughly explained the
 
 Being able to step back, come up with a different approach and explore it even if it may not work.
 
-Thanks alot for reading this! Cheers!
+I really enjoyed this box, I did all of buffer overflow things the OSCP threw at me but this box really helped me solidify those concepts and the exploit development process in general. Thanks alot for reading this! Cheers!
