@@ -330,9 +330,9 @@ Cool! The process begins again... let's go through the whole cycle once again ai
 
 And we have a successful exploit resulting in a root shell.
 
-My apologies if you were hoping for a writeup that more thoroughly explained the process of bufferoverflow exploit development, in my defense there's plenty of people out there that do a better job (hint, the author of this box is one of them ;D) what I really wanted to capture with this write up was the art of creative problem solving.
+My apologies if you were hoping for a writeup that more thoroughly explained the process of buffer overflow exploit development, in my defense there's plenty of people out there that do a better job (hint, the author of this box is one of them ;D) what I really wanted to capture with this write up was the art of creative problem solving.
 
-Being able to step back, come up with a different approach and explore it even if the chance of failure was high.
+Being able to step back, come up with a different approach and explore it even if it may not work.
 
 Thanks alot for reading this! 
 
